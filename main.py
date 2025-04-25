@@ -5,11 +5,17 @@ import numpy as np
 from neural_network import NeuralNetwork
 import data_analysis
 
+# function for correct loss calculation   
+def cross_entropy_loss(targets, outputs):
+    epsilon = 1e-9  # Small value to avoid log(0)
+    outputs = np.clip(outputs, epsilon, 1. - epsilon)
+    return -np.sum(targets * np.log(outputs))
+
 # Initialize the neural network
 input_nodes = 784  # 28x28 pixels
 hidden_nodes = 200
 output_nodes = 52   # EMNIST has 52 classes (A-Z, a-z)
-learning_rate = 0.1
+learning_rate = 0.001
 
 nn = NeuralNetwork(input_nodes, hidden_nodes, output_nodes, learning_rate)
 
@@ -29,13 +35,14 @@ else:
     labels_test = data["labels_test"]
 
     # Train the network
-    epochs = 5
+    epochs = 10
     for epoch in range(epochs):
         total_loss = 0
         print(f"Epoch {epoch + 1}/{epochs}")
         for i in range(len(images_train)):
             output = nn.query(images_train[i])
-            loss = -np.sum(labels_train[i] * np.log(output + 1e-9))  # Cross-entropy loss
+            # loss = -np.sum(labels_train[i] * np.log(output + 1e-9))  # Cross-entropy loss (no function)
+            loss = cross_entropy_loss(labels_train[i], output)
             total_loss += loss
             nn.train(images_train[i], labels_train[i])
         print(f"Epoch {epoch + 1}/{epochs}, Loss: {total_loss:.4f}")
@@ -43,7 +50,7 @@ else:
     # Save the trained weights
     nn.save_weights(weights_file)
     print(f"Weights saved to '{weights_file}'")
-
+    
 # Test the network
 def calculate_accuracy():
     correct = 0
