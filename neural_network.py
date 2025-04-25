@@ -137,7 +137,6 @@ class NeuralNetwork:
             # Clip the pixel values to the range [0, 1]
             generated_image = np.clip(generated_image, 0, 1)
         return generated_image
-
 # Example usage
 if __name__ == "__main__":
 

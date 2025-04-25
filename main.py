@@ -1,6 +1,6 @@
+import os
 import tkinter as tk
-from PIL import ImageGrab
-from PIL import Image
+from PIL import ImageGrab, Image
 import numpy as np
 from neural_network import NeuralNetwork
 import data_analysis
@@ -12,20 +12,39 @@ output_nodes = 52   # EMNIST has 52 classes (A-Z, a-z)
 learning_rate = 0.1
 
 nn = NeuralNetwork(input_nodes, hidden_nodes, output_nodes, learning_rate)
-nn.load_weights("weights.npz")  # Load pre-trained weights
-print("Weights loaded successfully!")
 
-# Generate an image for the letter 'a'
-generated_image = nn.generate_image(0, iterations=1000, learning_rate=0.1)
-# Reshape the generated image to 28x28 and save it
-from PIL import Image
-import numpy as np
+# Check if weights exist
+weights_file = "weights.npz"
+if os.path.exists(weights_file):
+    nn.load_weights(weights_file)
+    print("Weights loaded successfully!")
+else:
+    print("Weights not found. Training the network...")
+    
+    # Load preprocessed data
+    data = np.load("emnist_preprocessed.npz")
+    images_train = data["images_train"]
+    labels_train = data["labels_train"]
+    images_test = data["images_test"]
+    labels_test = data["labels_test"]
 
-generated_image_reshaped = (generated_image * 255).reshape(28, 28).astype(np.uint8)
-image = Image.fromarray(generated_image_reshaped, mode='L')
-image.save("generated_a.png")
-print("Generated image saved as 'generated_a.png'")
+    # Train the network
+    epochs = 5
+    for epoch in range(epochs):
+        total_loss = 0
+        print(f"Epoch {epoch + 1}/{epochs}")
+        for i in range(len(images_train)):
+            output = nn.query(images_train[i])
+            loss = -np.sum(labels_train[i] * np.log(output + 1e-9))  # Cross-entropy loss
+            total_loss += loss
+            nn.train(images_train[i], labels_train[i])
+        print(f"Epoch {epoch + 1}/{epochs}, Loss: {total_loss:.4f}")
 
+    # Save the trained weights
+    nn.save_weights(weights_file)
+    print(f"Weights saved to '{weights_file}'")
+
+# Test the network
 def calculate_accuracy():
     correct = 0
     total = len(data_analysis.images_test)
@@ -33,11 +52,11 @@ def calculate_accuracy():
     for i in range(total):
         # Get the input image and the true label
         input_image = data_analysis.images_test[i]
-        true_label = data_analysis.labels_test[i]
+        true_label = np.argmax(data_analysis.labels_test[i])  # Extract the index of the correct class
 
         # Query the neural network
         output = nn.query(input_image)
-        predicted_label = np.argmax(output)
+        predicted_label = np.argmax(output)  # Extract the index of the predicted class
 
         # Check if the prediction is correct
         if predicted_label == true_label:
