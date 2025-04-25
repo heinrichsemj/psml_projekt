@@ -1,0 +1,9 @@
+# Ignore virtual environments
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+
+# Ignore data files
+*.npz
