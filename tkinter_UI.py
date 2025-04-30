@@ -6,7 +6,7 @@ import numpy as np
 im_values = []
 # creates a window for drawing the letter
 window = tk.Tk()
-window.geometry('820x350')
+window.geometry('820x600')
 
 # From brightness Pixel Vector to image again (image gets saved on "testbilddef.png")
 def visualize(input_image):  
