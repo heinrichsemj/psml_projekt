@@ -14,7 +14,7 @@ def cross_entropy_loss(targets, outputs):
 # Initialize the neural network
 input_nodes = 784  # 28x28 pixels
 hidden_nodes = 200
-output_nodes = 52   # EMNIST has 52 classes (A-Z, a-z)
+output_nodes = 26   # EMNIST has 26 classes (a-z)
 learning_rate = 0.001
 
 nn = NeuralNetwork(input_nodes, hidden_nodes, output_nodes, learning_rate)
@@ -35,13 +35,14 @@ else:
     labels_test = data["labels_test"]
 
     # Train the network
-    epochs = 10
+    epochs = 5
     for epoch in range(epochs):
+        shuffle = np.random.permutation(len(labels_train))
+        labels_train, images_train = labels_train[shuffle], images_train[shuffle]
         total_loss = 0
         print(f"Epoch {epoch + 1}/{epochs}")
         for i in range(len(images_train)):
             output = nn.query(images_train[i])
-            # loss = -np.sum(labels_train[i] * np.log(output + 1e-9))  # Cross-entropy loss (no function)
             loss = cross_entropy_loss(labels_train[i], output)
             total_loss += loss
             nn.train(images_train[i], labels_train[i])
@@ -55,7 +56,6 @@ else:
 def calculate_accuracy():
     correct = 0
     total = len(data_analysis.images_test)
-
     for i in range(total):
         # Get the input image and the true label
         input_image = data_analysis.images_test[i]
@@ -64,7 +64,7 @@ def calculate_accuracy():
         # Query the neural network
         output = nn.query(input_image)
         predicted_label = np.argmax(output)  # Extract the index of the predicted class
-
+        
         # Check if the prediction is correct
         if predicted_label == true_label:
             correct += 1
@@ -86,7 +86,6 @@ def predict():
     )
     grab = ImageGrab.grab(bbox=box)
     grab = grab.resize((28, 28), Image.Resampling.LANCZOS)  # Resize to 28x28
-
     # Convert the image to grayscale and normalize pixel values
     im_values = []
     for i in range(28):
@@ -100,8 +99,6 @@ def predict():
     alphabet = [
     'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
     'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
     ]
     # Display the prediction on the tkinter window
     prediction_label.config(text=f"Prediction: {alphabet[predicted_class]}")  # Convert to character

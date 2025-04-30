@@ -18,7 +18,6 @@ else:
     # Download latest version
     path = kagglehub.dataset_download("crawford/emnist")
     print("Loading EMNIST dataset...")
-
     # Find the training CSV file in the downloaded directory
     if os.path.isdir(path):
         files = os.listdir(path)
@@ -72,8 +71,10 @@ def one_hot_encode(labels, num_classes):
     for i, label in enumerate(labels):
         one_hot[i, label] = 1
     return one_hot
-labels_train = one_hot_encode(labels_train, 52)
-labels_test = one_hot_encode(labels_test, 52)
+
+labels_train = one_hot_encode(labels_train, 26)
+labels_test = one_hot_encode(labels_test, 26)
+
 # Example usage
 if __name__ == "__main__":
     print("Sample training label:", labels_train[0])

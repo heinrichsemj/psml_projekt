@@ -4,67 +4,82 @@ import numpy as np
 
 class NeuralNetwork:
     def __init__(self, input_nodes, hidden_nodes, output_nodes, learning_rate):
-        self.input_nodes = input_nodes
-        self.hidden_nodes = hidden_nodes
-        self.output_nodes = output_nodes
+        self.input_nodes = input_nodes  # 784 for 28x28 images
+        self.hidden_nodes = hidden_nodes  # Normally 200
+        self.output_nodes = output_nodes  # 26 for letters
         self.learning_rate = learning_rate
 
         # random weights initialization
         self.weights_ih = np.random.randn(self.hidden_nodes, self.input_nodes) * np.sqrt(2. / self.input_nodes)
+        self.weights_hh1 = np.random.randn(self.hidden_nodes, self.hidden_nodes) * np.sqrt(2. / self.input_nodes)
         self.weights_ho = np.random.randn(self.output_nodes, self.hidden_nodes) * np.sqrt(2. / self.hidden_nodes)
         
-        # Activation function for hidden layers (ReLU)
-        self.activation_function = lambda x: np.maximum(0, x)
+        # Activation function for hidden layers ( leaky ReLU)
+        self.activation_function = lambda x: np.maximum(0.01 * x, x)
 
         # Derivative of ReLU for backpropagation
-        self.activation_function_derivative = lambda x: np.where(x > 0, 1, 0)
-
+        self.activation_function_derivative = lambda x: np.where(x > 0, 1, 0.01)
         # Activation function for output layer (softmax)
         self.output_activation_function = lambda x: np.exp(x - np.max(x, axis=0, keepdims=True)) / np.sum(np.exp(x - np.max(x, axis=0, keepdims=True)), axis=0, keepdims=True)
+        
     def train(self, inputs_list, targets_list):
         inputs = np.array(inputs_list, ndmin=2).T
         targets = np.array(targets_list, ndmin=2).T
 
         # Forward pass
-        hidden_inputs = np.dot(self.weights_ih, inputs)
-        hidden_outputs = self.activation_function(hidden_inputs)
+        hidden_inputs1 = np.dot(self.weights_ih, inputs)
+        hidden_outputs1 = self.activation_function(hidden_inputs1)
 
-        final_inputs = np.dot(self.weights_ho, hidden_outputs)
+        hidden_inputs2 = np.dot(self.weights_hh1, hidden_outputs1)
+        hidden_outputs2 = self.activation_function(hidden_inputs2)
+
+        final_inputs = np.dot(self.weights_ho, hidden_outputs2)
         final_outputs = self.output_activation_function(final_inputs)
 
         # Backward pass
-        output_errors = targets - final_outputs
-        hidden_errors = np.dot(self.weights_ho.T, output_errors)
+        output_errors = final_outputs - targets
+        hidden_errors2 = np.dot(self.weights_ho.T, output_errors)
+        hidden_errors1 = np.dot(self.weights_hh1.T, hidden_errors2 * self.activation_function_derivative(hidden_inputs2))
+
+
 
         # Update weights between hidden and output layers
-        self.weights_ho += self.learning_rate * np.dot(
-            (output_errors * final_outputs * (1.0 - final_outputs)),
-            hidden_outputs.T
-        )
+        self.weights_ho += self.learning_rate * np.dot(output_errors, hidden_outputs2.T)
+
+        self.weights_hh1 += self.learning_rate * np.dot(
+            (hidden_errors2 * self.activation_function_derivative(hidden_inputs2)),
+            hidden_outputs1.T
+        )   
 
         # Update weights between input and hidden layers
         self.weights_ih += self.learning_rate * np.dot(
-            (hidden_errors * self.activation_function_derivative(hidden_inputs)),
+            (hidden_errors1 * self.activation_function_derivative(hidden_inputs1)),
             inputs.T
         )
 
+        # Gradient clipping (so the weights don't exceed 1.0)
         # Gradient clipping
         gradient_clip_value = 1.0
         self.weights_ho = np.clip(self.weights_ho, -gradient_clip_value, gradient_clip_value)
+        self.weights_hh1 = np.clip(self.weights_hh1, -gradient_clip_value, gradient_clip_value)
         self.weights_ih = np.clip(self.weights_ih, -gradient_clip_value, gradient_clip_value)
 
+    # Prediction function
     def query(self, inputs_list):
         inputs = np.array(inputs_list, ndmin=2).T
 
-        hidden_inputs = np.dot(self.weights_ih, inputs)
-        hidden_outputs = self.activation_function(hidden_inputs)
+        hidden_inputs_1 = np.dot(self.weights_ih, inputs)
+        hidden_outputs_1 = self.activation_function(hidden_inputs_1)
 
-        final_inputs = np.dot(self.weights_ho, hidden_outputs)
+        hidden_inputs_2 = np.dot(self.weights_hh1, hidden_outputs_1)
+        hidden_outputs_2 = self.activation_function(hidden_inputs_2)
+
+        final_inputs = np.dot(self.weights_ho, hidden_outputs_2)
         final_outputs = self.output_activation_function(final_inputs)
 
         return final_outputs
     
-    def set_weights(self, weights_ih, weights_ho):
+    def set_weights(self, weights_ih, weights_hh1, weights_ho):
         """
         Set weights manually
         
@@ -73,6 +88,7 @@ class NeuralNetwork:
         weights_ho (array): Hidden-to-output weights
         """
         self.weights_ih = weights_ih
+        self.weights_hh1 = weights_hh1
         self.weights_ho = weights_ho
     
     def save_weights(self, filename):
@@ -82,7 +98,7 @@ class NeuralNetwork:
         Parameters:
         filename (str): Path to save weights
         """
-        np.savez(filename, weights_ih=self.weights_ih, weights_ho=self.weights_ho)
+        np.savez(filename, weights_ih=self.weights_ih, weights_hh1=self.weights_hh1, weights_ho=self.weights_ho)
     
     def load_weights(self, filename):
         """
@@ -93,6 +109,7 @@ class NeuralNetwork:
         """
         data = np.load(filename)
         self.weights_ih = data['weights_ih']
+        self.weights_hh1 = data['weights_hh1']
         self.weights_ho = data['weights_ho']
     
     def generate_image(self, target_letter, iterations=1000, learning_rate=0.1):
@@ -141,8 +158,8 @@ if __name__ == "__main__":
 
     # Initialize the neural network
     input_nodes = 784  # 28x28 pixels
-    hidden_nodes = 256
-    output_nodes = 52  # Assuming 52 classes (A-Z, a-z)
+    hidden_nodes = 200
+    output_nodes = 26  # Assuming 52 classes (A-Z, a-z)
     learning_rate = 0.001
 
     nn = NeuralNetwork(input_nodes, hidden_nodes, output_nodes, learning_rate)

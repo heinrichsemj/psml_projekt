@@ -6,7 +6,7 @@ import numpy as np
 im_values = []
 # Erstellt einen Fenster für die Zeichnungen
 window = tk.Tk()
-window.geometry('820x350')
+window.geometry('820x650')
 
 def visualize(input_image):  # From brightness Pixel Vector to image again (image gets saved on "testbilddef.png")
     num_pixels = len(input_image)
@@ -17,6 +17,7 @@ def visualize(input_image):  # From brightness Pixel Vector to image again (imag
             coordinate_def = (i, j)
             pixel_value = int(input_image[j * num_rows_columns + i] * 255)  # Scale back to 0-255
             testbild_def.putpixel(coordinate_def, (pixel_value, pixel_value, pixel_value))
+    print("testbilddef.png")
     testbild_def.save('testbilddef.png')
 
 # Funktion fürs Zeichnen der Zahl
