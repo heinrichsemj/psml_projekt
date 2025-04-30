@@ -24,40 +24,32 @@ else:
         files = os.listdir(path)
         train_file = next((f for f in files if 'emnist-letters-train.csv' in f and f.endswith('.csv')), None)
         test_file = next((f for f in files if 'emnist-letters-test.csv' in f and f.endswith('.csv')), None)
-
-        if train_file:
-            path_train = os.path.join(path, train_file)
-        else:
-            raise FileNotFoundError("No training CSV file found in the dataset directory.")
-
-        if test_file:
-            path_test = os.path.join(path, test_file)
-        else:
-            raise FileNotFoundError("No testing CSV file found in the dataset directory.")
-
+        path_train = os.path.join(path, train_file)
+        path_test = os.path.join(path, test_file)
+        
     # Load the training dataset (no header)
     df_train = pd.read_csv(path_train, header=None)
-    labels_train = df_train.iloc[:, 0].values  # First column
-    images_train = df_train.iloc[:, 1:].values  # All other columns
+    labels_train = df_train.iloc[:, 0].values  # initially a # (0 - 25)
+    images_train = df_train.iloc[:, 1:].values 
 
-    # Adjust labels to start from 0 (if needed)
+    # Adjust labels to start from 0
     labels_train -= 1
 
-    # Normalize pixel values (from 0-255 to 0-1) and reshape
+    # Normalize pixel values (0-255 -> 0-1)
     images_train = images_train.astype('float32') / 255.0
-    images_train = images_train.reshape(-1, 28 * 28)  # Flatten to vectors
+    images_train = images_train.reshape(-1, 28 * 28)  # -> vectors
 
     # Load the testing dataset (no header)
     df_test = pd.read_csv(path_test, header=None)
-    labels_test = df_test.iloc[:, 0].values  # First column
-    images_test = df_test.iloc[:, 1:].values  # All other columns
+    labels_test = df_test.iloc[:, 0].values # initially a # (0 - 25)
+    images_test = df_test.iloc[:, 1:].values  
 
-    # Adjust labels to start from 0 (if needed)
+    # Adjust labels to start from 0
     labels_test -= 1
 
-    # Normalize pixel values (from 0-255 to 0-1) and reshape
+    # Normalize pixel values (0-255 -> 0-1)
     images_test = images_test.astype('float32') / 255.0
-    images_test = images_test.reshape(-1, 28 * 28)  # Flatten to vectors
+    images_test = images_test.reshape(-1, 28 * 28)  # -> vectors
 
     # Save preprocessed data
     np.savez("emnist_preprocessed.npz", 
@@ -72,8 +64,9 @@ def one_hot_encode(labels, num_classes):
     for i, label in enumerate(labels):
         one_hot[i, label] = 1
     return one_hot
-labels_train = one_hot_encode(labels_train, 52)
-labels_test = one_hot_encode(labels_test, 52)
+labels_train = one_hot_encode(labels_train, 26)
+labels_test = one_hot_encode(labels_test, 26)
+
 # Example usage
 if __name__ == "__main__":
     print("Sample training label:", labels_train[0])
