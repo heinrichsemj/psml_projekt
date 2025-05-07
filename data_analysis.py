@@ -2,6 +2,36 @@ import pandas as pd
 import numpy as np
 import kagglehub
 import os
+from PIL import Image
+
+def preprocess_image(image_array):
+    """
+    Preprocess the image by rotating it 90 degrees counterclockwise and mirroring it.
+    
+    Parameters:
+    image_array (numpy.ndarray): The input image as a 2D numpy array.
+
+    Returns:
+    numpy.ndarray: The transformed image as a 2D numpy array.
+    """
+    # Convert the numpy array to a PIL Image
+    image = Image.fromarray(image_array)
+
+    # Rotate 180 degrees counterclockwise
+    image = image.rotate(270, expand=True)
+
+    # Mirror the image
+    image = image.transpose(Image.FLIP_LEFT_RIGHT)
+
+    # Convert back to a numpy array
+    return np.array(image)
+
+def one_hot_encode(labels, num_classes):
+    one_hot = np.zeros((len(labels), num_classes))
+    for i, label in enumerate(labels):
+        one_hot[i, label] = 1
+    return one_hot
+
 
 # Check if preprocessed data exists
 if os.path.exists("emnist_preprocessed.npz"):
@@ -22,6 +52,7 @@ else:
     # Find the training CSV file in the downloaded directory
     if os.path.isdir(path):
         files = os.listdir(path)
+        print(files)
         train_file = next((f for f in files if 'emnist-letters-train.csv' in f and f.endswith('.csv')), None)
         test_file = next((f for f in files if 'emnist-letters-test.csv' in f and f.endswith('.csv')), None)
         path_train = os.path.join(path, train_file)
@@ -34,6 +65,8 @@ else:
 
     # Adjust labels to start from 0
     labels_train -= 1
+    # print unique labels
+    print("Unique labels in training set:", np.unique(labels_train))
 
     # Normalize pixel values (0-255 -> 0-1)
     images_train = images_train.astype('float32') / 255.0
@@ -46,10 +79,17 @@ else:
 
     # Adjust labels to start from 0
     labels_test -= 1
+    print("Unique labels in testing set:", np.unique(labels_test))
 
     # Normalize pixel values (0-255 -> 0-1)
     images_test = images_test.astype('float32') / 255.0
     images_test = images_test.reshape(-1, 28 * 28)  # -> vectors
+
+
+    images_train = np.array([preprocess_image(img.reshape(28, 28)).flatten() for img in images_train])
+    images_test = np.array([preprocess_image(img.reshape(28, 28)).flatten() for img in images_test])
+    labels_train = one_hot_encode(labels_train, len(np.unique(labels_train)))
+    labels_test = one_hot_encode(labels_test, len(np.unique(labels_test)))
 
     # Save preprocessed data
     np.savez("emnist_preprocessed.npz", 
@@ -59,13 +99,6 @@ else:
              labels_test=labels_test)
     print("Preprocessed data saved to 'emnist_preprocessed.npz'")
 
-def one_hot_encode(labels, num_classes):
-    one_hot = np.zeros((len(labels), num_classes))
-    for i, label in enumerate(labels):
-        one_hot[i, label] = 1
-    return one_hot
-labels_train = one_hot_encode(labels_train, 26)
-labels_test = one_hot_encode(labels_test, 26)
 
 # Example usage
 if __name__ == "__main__":
