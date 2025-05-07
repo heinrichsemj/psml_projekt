@@ -139,3 +139,5 @@ draw = ImageDraw.Draw(pil_image)
 # Tastenkombination zum Schließen binden (z. B. "q")
 window.bind("<q>", close_window)  # Einfach "q" drücken
 # Alternativ für Strg + Q: window.bind("<Control-q>", close_window)
+
+window.mainloop()
