@@ -6,6 +6,12 @@ import numpy as np
 from neural_network import NeuralNetwork
 import data_analysis
 
+import ctypes
+try:
+    ctypes.windll.shcore.SetProcessDpiAwareness(1)  # Für Windows High-DPI
+except:
+    pass
+
 # From brightness Pixel Vector to image again (image gets saved on "testbilddef.png")
 def visualize(input_image):  
     num_pixels = len(input_image)
@@ -90,75 +96,45 @@ calculate_accuracy()
 
 # Function to make a prediction
 def predict():
-    # Capture the canvas content
-    box = (
-        canvas.winfo_rootx() + 3,
-        canvas.winfo_rooty() + 3,
-        canvas.winfo_rootx() + canvas.winfo_width() - 3,
-        canvas.winfo_rooty() + canvas.winfo_height() - 3
-    )
-    grab = ImageGrab.grab(bbox=box)
-    grab = grab.resize((28, 28), Image.Resampling.LANCZOS)  # Resize to 28x28
+    try:
+        # Accurate canvas capture (with small buffer for borders)
+        x = canvas.winfo_rootx() + 2
+        y = canvas.winfo_rooty() + 2
+        x1 = x + canvas.winfo_width() - 4
+        y1 = y + canvas.winfo_height() - 4
 
-    # Convert the image to grayscale and normalize pixel values
-    im_values = []
-    for i in range(28):
-        for j in range(28):
-            r, g, b = grab.getpixel((j, i))[:3]
-            brightness = abs(((r + g + b) // 3)) / 255.0
-            im_values.append(brightness)
+        img = ImageGrab.grab(bbox=(x, y, x1, y1))
 
-    numbers = [
-        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-    ]
-    alphabet = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
-        'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
-        'U', 'V', 'W', 'X', 'Y', 'Z']        
-    # Query the neural network
-    output = nn.query(im_values)
-    predicted_class = np.argmax(output)
-    confidence = float(output[predicted_class][0]) * 100
-    prediction_label.config(text=f"Prediction: {alphabet[predicted_class]}")
-    confidence_label.config(text=f"Confidence: {confidence:.2f}%")
-    
-    visualize(im_values)  # Visualize the drawn image
-    
+        # Resize and convert to grayscale
+        img = img.resize((28, 28), Image.Resampling.LANCZOS).convert('L')
 
-"""# Function to clear the canvas
-def clear_canvas():
-    canvas.delete('all')
-    prediction_label.config(text="Prediction: ")
+        """# Invert: black background becomes white (0 → 255), white drawing becomes black
+        img = Image.eval(img, lambda x: 255 - x)"""
 
-# Create the tkinter window
-window = tk.Tk()
-window.geometry('820x600')
-window.title("Handwritten Character Recognition")
+        # Normalize: 0 (black stroke) → 1.0, 255 (white bg) → 0.0
+        im_values = np.asarray(img) / 255.0
 
-# Create the canvas for drawing
-canvas = tk.Canvas(window, width=540, height=540, bg="black", cursor="cross")
-canvas.grid(row=0, column=0, pady=2, padx=2)
+        # Flatten to 1D input
+        input_data = im_values.flatten()
 
-# Add buttons and labels
-prediction_label = tk.Label(window, text="Prediction: ", font=("Calibri", 20))
-prediction_label.grid(row=0, column=1, pady=2, padx=2)
+        output = nn.query(input_data)
+        predicted_class = np.argmax(output)
+        confidence = float(output[predicted_class][0]) * 100
 
-recognize_button = tk.Button(window, text="Recognise", command=predict)
-recognize_button.grid(row=1, column=1, pady=2, padx=2)
+        alphabet = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
+                    'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
+                    'U', 'V', 'W', 'X', 'Y', 'Z']
 
-clear_button = tk.Button(window, text="Clear", command=clear_canvas)
-clear_button.grid(row=1, column=0, pady=2)
+        prediction_label.config(text=f"Prediction: {alphabet[predicted_class]}")
+        confidence_label.config(text=f"Confidence: {confidence:.2f}%")
 
-# Function to draw on the canvas
-def paint(event, brush_size=20):
-    x1, y1 = (event.x - brush_size), (event.y - brush_size)
-    x2, y2 = (event.x + brush_size), (event.y + brush_size)
-    canvas.create_oval(x1, y1, x2, y2, outline="white", fill="white", width=0)
+        status_bar.config(text="Prediction complete")
 
-canvas.bind("<B1-Motion>", paint)
+        visualize(input_data)
 
-# Run the tkinter main loop
-window.mainloop()"""
-
+    except Exception as e:
+        print("Prediction error:", e)
+        status_bar.config(text=f"Error: {e}")
 
 # Enhanced clear function
 def clear_canvas():
@@ -167,62 +143,17 @@ def clear_canvas():
     confidence_label.config(text="Confidence: -")
     status_bar.config(text="Canvas cleared")
 
-"""# Enhanced predict function
-def predict():
-    try:
-        print("Starting prediction...")
-        status_bar.config(text="Processing...")
-        window.update()
-        
-        # Capture canvas content
-        box = (
-            canvas.winfo_rootx() + 2,
-            canvas.winfo_rooty() + 2,
-            canvas.winfo_rootx() + canvas.winfo_width() - 2,
-            canvas.winfo_rooty() + canvas.winfo_height() - 2
-        )
-        grab = ImageGrab.grab(bbox=box)
-        grab = grab.resize((28, 28), Image.Resampling.LANCZOS).convert('L')  # Convert to grayscale
-        
-        # Process image - ensure proper normalization
-        im_values = []
-        for i in range(28):
-            for j in range(28):
-                pixel = grab.getpixel((j, i))
-                # Normalize to 0-1 range with black=1, white=0
-                brightness = (255 - pixel) / 255.0
-                im_values.append(brightness)
-        
-        
-        # Convert to numpy array and reshape to 28x28
-        im_array = np.array(im_values).reshape(28, 28)
-        
-        # Rotate 180 degrees by flipping both axes
-        rotated_array = np.flipud(np.fliplr(im_array))
-        
-        # Convert back to 1D array
-        final_im_values = rotated_array.flatten().tolist()
-        visualize(im_values)  # Visualize the drawn image
-        alphabet = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
-        'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
-        'U', 'V', 'W', 'X', 'Y', 'Z']
-        # Query the neural network
-        output = nn.query(im_values)
-        predicted_class = np.argmax(output)
-        confidence = float(output[predicted_class][0]) * 100
-        prediction_label.config(text=f"Prediction: {alphabet[predicted_class]}")
-        confidence_label.config(text=f"Confidence: {confidence:.2f}%")
-        
-        status_bar.config(text="Prediction complete")
-    except Exception as e:
-        status_bar.config(text=f"Error: {str(e)}")
-        print(f"Prediction error: {e}")
-"""
-
 # Create a modern, polished tkinter window
 window = tk.Tk()
 window.title("Digit Recognition App")
-window.geometry('900x700')
+# Cross-platform fullscreen
+window.geometry(f"{window.winfo_screenwidth()}x{window.winfo_screenheight()}")
+try:
+    window.state('zoomed')  # Works on Windows
+except:
+    pass
+
+
 window.configure(bg='#f0f0f0')
 
 # Set window icon (replace with your own icon if available)
@@ -311,6 +242,10 @@ def paint(event):
     
 canvas.bind("<B1-Motion>", paint)
 
+def close_window(event=None):
+    print("Fenster wird geschlossen...")
+    window.destroy()  # Closes the Tkinter window
+window.bind("<q>", close_window)  # Press 'q' to close the window
 
 # Run the application
 window.mainloop()
