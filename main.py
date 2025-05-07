@@ -3,101 +3,34 @@ import tkinter as tk
 from tkinter import ttk
 from PIL import ImageGrab, Image
 import numpy as np
-from neural_network import NeuralNetwork
-import data_analysis
+from neural_network import NeuralNetwork, visualize
+from data_analysis import load_emnist_data
+from neural_network import train_model
 
+# Check if the script is running on Windows and set DPI awareness
 import ctypes
 try:
     ctypes.windll.shcore.SetProcessDpiAwareness(1)  # Für Windows High-DPI
 except:
     pass
 
-# From brightness Pixel Vector to image again (image gets saved on "testbilddef.png")
-def visualize(input_image):  
-    num_pixels = len(input_image)
-    num_rows_columns = int(np.sqrt(num_pixels))
-    testbild_def = Image.new('RGB', (num_rows_columns, num_rows_columns), (255, 255, 255))
-    for i in range(num_rows_columns):  # x
-        for j in range(num_rows_columns):  # y
-            coordinate_def = (i, j)
-            pixel_value = int(input_image[j * num_rows_columns + i] * 255)  # Scale back to 0-255
-            testbild_def.putpixel(coordinate_def, (pixel_value, pixel_value, pixel_value))
-    testbild_def.save('testbilddef.png')
-
-# function for correct loss calculation   
-def cross_entropy_loss(targets, outputs):
-    epsilon = 1e-9  # Small value to avoid log(0)
-    outputs = np.clip(outputs, epsilon, 1. - epsilon)
-    return -np.sum(targets * np.log(outputs))
-
 # Initialize the neural network
 input_nodes = 784  # 28x28 pixels
 hidden_nodes = 200
-output_nodes = 26   # EMNIST has 52 classes (a-z)
+output_nodes = 26   # EMNIST has 26 classes (A-Z)
 learning_rate = 0.1
 
 nn = NeuralNetwork(input_nodes, hidden_nodes, output_nodes, learning_rate)
 
-# Check if weights exist
-weights_file = "weights.npz"
-if os.path.exists(weights_file):
-    nn.load_weights(weights_file)
-    print("Weights loaded successfully!")
-else:
-    print("Weights not found. Training the network...")
+# Load preprocessed data
+images_train, labels_train, images_test, labels_test = load_emnist_data()
+# Train the neural network
+train_model(nn, images_train, labels_train, epochs=5)
     
-    # Load preprocessed data
-    data = np.load("emnist_preprocessed.npz")
-    images_train = data["images_train"]
-    labels_train = data["labels_train"]
-    images_test = data["images_test"]
-    labels_test = data["labels_test"]
-
-    # Train the network
-    epochs = 10
-    for epoch in range(epochs):
-        total_loss = 0
-        print(f"Epoch {epoch + 1}/{epochs}")
-        for i in range(len(images_train)):
-            output = nn.query(images_train[i])
-            # loss = -np.sum(labels_train[i] * np.log(output + 1e-9))  # Cross-entropy loss (no function)
-            loss = cross_entropy_loss(labels_train[i], output)
-            total_loss += loss
-            nn.train(images_train[i], labels_train[i])
-        print(f"Epoch {epoch + 1}/{epochs}, Loss: {total_loss:.4f}")
-
-    # Save the trained weights
-    nn.save_weights(weights_file)
-    print(f"Weights saved to '{weights_file}'")
-    
-# Test the network
-def calculate_accuracy():
-    correct = 0
-    total = len(data_analysis.images_test)
-
-    for i in range(total):
-        # Get the input image and the true label
-        input_image = data_analysis.images_test[i]
-        true_label = np.argmax(data_analysis.labels_test[i])  # Extract the index of the correct class
-
-        # Query the neural network
-        output = nn.query(input_image)
-        predicted_label = np.argmax(output)  # Extract the index of the predicted class
-
-        # Check if the prediction is correct
-        if predicted_label == true_label:
-            correct += 1
-
-    # Calculate and print accuracy
-    accuracy = correct / total * 100
-    print(f"Accuracy on testing data: {accuracy:.2f}%")
-
-calculate_accuracy()
-
 # Function to make a prediction
 def predict():
     try:
-        # Accurate canvas capture (with small buffer for borders)
+        # Canvas capture
         x = canvas.winfo_rootx() + 2
         y = canvas.winfo_rooty() + 2
         x1 = x + canvas.winfo_width() - 4
@@ -108,15 +41,13 @@ def predict():
         # Resize and convert to grayscale
         img = img.resize((28, 28), Image.Resampling.LANCZOS).convert('L')
 
-        """# Invert: black background becomes white (0 → 255), white drawing becomes black
-        img = Image.eval(img, lambda x: 255 - x)"""
-
-        # Normalize: 0 (black stroke) → 1.0, 255 (white bg) → 0.0
+        # Normalize: 255 (white) → 1.0, 0 (black) → 0.0
         im_values = np.asarray(img) / 255.0
 
         # Flatten to 1D input
         input_data = im_values.flatten()
 
+        # Get prediction
         output = nn.query(input_data)
         predicted_class = np.argmax(output)
         confidence = float(output[predicted_class][0]) * 100
@@ -136,6 +67,8 @@ def predict():
         print("Prediction error:", e)
         status_bar.config(text=f"Error: {e}")
 
+
+# Tkinter window setup
 # Enhanced clear function
 def clear_canvas():
     canvas.delete('all')
