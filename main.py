@@ -107,19 +107,22 @@ def predict():
             r, g, b = grab.getpixel((j, i))[:3]
             brightness = abs(((r + g + b) // 3)) / 255.0
             im_values.append(brightness)
-    # Query the neural network
-    output = nn.query(im_values)
-    predicted_class = np.argmax(output)
+
     numbers = [
         '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
     ]
     alphabet = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
         'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
-        'U', 'V', 'W', 'X', 'Y', 'Z']
+        'U', 'V', 'W', 'X', 'Y', 'Z']        
+    # Query the neural network
+    output = nn.query(im_values)
+    predicted_class = np.argmax(output)
+    confidence = float(output[predicted_class][0]) * 100
+    prediction_label.config(text=f"Prediction: {alphabet[predicted_class]}")
+    confidence_label.config(text=f"Confidence: {confidence:.2f}%")
+    
     visualize(im_values)  # Visualize the drawn image
-
-    # Display the prediction on the tkinter window
-    prediction_label.config(text=f"Prediction: {alphabet[predicted_class]}")  # Convert to character
+    
 
 """# Function to clear the canvas
 def clear_canvas():
@@ -163,6 +166,58 @@ def clear_canvas():
     prediction_label.config(text="Draw a digit")
     confidence_label.config(text="Confidence: -")
     status_bar.config(text="Canvas cleared")
+
+"""# Enhanced predict function
+def predict():
+    try:
+        print("Starting prediction...")
+        status_bar.config(text="Processing...")
+        window.update()
+        
+        # Capture canvas content
+        box = (
+            canvas.winfo_rootx() + 2,
+            canvas.winfo_rooty() + 2,
+            canvas.winfo_rootx() + canvas.winfo_width() - 2,
+            canvas.winfo_rooty() + canvas.winfo_height() - 2
+        )
+        grab = ImageGrab.grab(bbox=box)
+        grab = grab.resize((28, 28), Image.Resampling.LANCZOS).convert('L')  # Convert to grayscale
+        
+        # Process image - ensure proper normalization
+        im_values = []
+        for i in range(28):
+            for j in range(28):
+                pixel = grab.getpixel((j, i))
+                # Normalize to 0-1 range with black=1, white=0
+                brightness = (255 - pixel) / 255.0
+                im_values.append(brightness)
+        
+        
+        # Convert to numpy array and reshape to 28x28
+        im_array = np.array(im_values).reshape(28, 28)
+        
+        # Rotate 180 degrees by flipping both axes
+        rotated_array = np.flipud(np.fliplr(im_array))
+        
+        # Convert back to 1D array
+        final_im_values = rotated_array.flatten().tolist()
+        visualize(im_values)  # Visualize the drawn image
+        alphabet = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
+        'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
+        'U', 'V', 'W', 'X', 'Y', 'Z']
+        # Query the neural network
+        output = nn.query(im_values)
+        predicted_class = np.argmax(output)
+        confidence = float(output[predicted_class][0]) * 100
+        prediction_label.config(text=f"Prediction: {alphabet[predicted_class]}")
+        confidence_label.config(text=f"Confidence: {confidence:.2f}%")
+        
+        status_bar.config(text="Prediction complete")
+    except Exception as e:
+        status_bar.config(text=f"Error: {str(e)}")
+        print(f"Prediction error: {e}")
+"""
 
 # Create a modern, polished tkinter window
 window = tk.Tk()
@@ -255,58 +310,6 @@ def paint(event):
     canvas.create_oval(x1, y1, x2, y2, outline="black", fill="white", width=0)
     
 canvas.bind("<B1-Motion>", paint)
-
-# Enhanced predict function
-def predict():
-    try:
-        print("Starting prediction...")
-        status_bar.config(text="Processing...")
-        window.update()
-        
-        # Capture canvas content
-        box = (
-            canvas.winfo_rootx() + 2,
-            canvas.winfo_rooty() + 2,
-            canvas.winfo_rootx() + canvas.winfo_width() - 2,
-            canvas.winfo_rooty() + canvas.winfo_height() - 2
-        )
-        grab = ImageGrab.grab(bbox=box)
-        grab = grab.resize((28, 28), Image.Resampling.LANCZOS).convert('L')  # Convert to grayscale
-        
-        # Process image - ensure proper normalization
-        im_values = []
-        for i in range(28):
-            for j in range(28):
-                pixel = grab.getpixel((j, i))
-                # Normalize to 0-1 range with black=1, white=0
-                brightness = (255 - pixel) / 255.0
-                im_values.append(brightness)
-        
-        
-        # Convert to numpy array and reshape to 28x28
-        im_array = np.array(im_values).reshape(28, 28)
-        
-        # Rotate 180 degrees by flipping both axes
-        rotated_array = np.flipud(np.fliplr(im_array))
-        
-        # Convert back to 1D array
-        final_im_values = rotated_array.flatten().tolist()
-        visualize(final_im_values)  # Visualize the drawn image
-        # Query the neural network
-        output = nn.query(final_im_values)
-        predicted_class = np.argmax(output)
-        confidence = output[predicted_class][0] * 100
-        
-        # Print full output for debugging
-        print("Network outputs:", [f"{x[0]:.4f}" for x in output])
-        
-        prediction_label.config(text=f"Prediction: {predicted_class}")
-        confidence_label.config(text=f"Confidence: {confidence:.1f}%")
-        
-        status_bar.config(text="Prediction complete")
-    except Exception as e:
-        status_bar.config(text=f"Error: {str(e)}")
-        print(f"Prediction error: {e}")
 
 
 # Run the application
